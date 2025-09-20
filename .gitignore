@@ -22,3 +22,9 @@ node_modules/
 # Archives
 *.zip
 *.tar.gz
+
+# Community and external files (not part of this repository)
+CommunityFlowPlugins/
+CommunityFlowTemplates/
+FlowHelpers/
+nodePlugins.Zip
