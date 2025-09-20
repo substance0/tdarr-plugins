@@ -24,6 +24,7 @@ A comprehensive Discord webhook notification system for Tdarr Flow that provides
 - **Multiple Modes**: Choose between message updates or sequential notifications
 
 ### Features:
+
 - ✅ **Processing Events**: Start, Success, and Error notifications
 - ✅ **Media Detection**: Automatic parsing of movie/TV show information from filenames
 - ✅ **Poster Fetching**: Optional OMDb API integration for artwork
@@ -33,6 +34,7 @@ A comprehensive Discord webhook notification system for Tdarr Flow that provides
 - ✅ **Refactored Code**: Clean, maintainable, and well-documented codebase
 
 ### Usage:
+
 1. Add the Discord plugin to your Tdarr Flow
 2. Configure webhook URL from Discord server settings
 3. Set notification type (start_processing, transcode_success, transcode_error)
@@ -56,12 +58,14 @@ A comprehensive Discord webhook notification system for Tdarr Flow that provides
 ## 🔧 Configuration
 
 ### Discord Webhook Setup:
+
 1. Go to Discord Server Settings → Integrations → Webhooks
 2. Create a new webhook or use existing one
 3. Copy the webhook URL
 4. Add URL to plugin configuration
 
 ### Flow Variables:
+
 The Discord plugin uses Flow Variables (`args.variables.user`) to share message IDs between plugin instances, enabling message updates across different notification types.
 
 ## 📊 Performance Features
