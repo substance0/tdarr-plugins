@@ -109,10 +109,10 @@ Replace hardcoded values with global variable references:
 
 ```javascript
 // Instead of:
-webhook_url: "https://discord.com/api/webhooks/123/abc"
+webhook_url: "https://discord.com/api/webhooks/123/abc";
 
 // Use:
-webhook_url: "{{{args.userVariables.global.discord_webhook_url}}}"
+webhook_url: "{{{args.userVariables.global.discord_webhook_url}}}";
 ```
 
 ## 🚀 Best Practices

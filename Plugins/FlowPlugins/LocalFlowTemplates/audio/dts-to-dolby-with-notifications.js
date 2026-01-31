@@ -48,7 +48,7 @@ var details = function () {
         name: "Discord Start Notification",
         sourceRepo: "Local",
         pluginName: "discord",
-        version: "1.0.0",
+        version: "1.1.0",
         id: "discord-start",
         position: {
           x: 300,
@@ -57,13 +57,46 @@ var details = function () {
         inputsDB: {
           webhook_url: "{{{args.userVariables.global.discord_webhook_url}}}",
           notification_type: "start_processing",
-          notification_mode: "updates",
+          show_file_details: "true",
+          show_processing_stats: "true",
+          show_technical_details: "true",
           tdarr_server_url: "{{{args.userVariables.global.tdarr_server_url}}}",
+          enable_cancel_button: "true",
           omdb_api_key: "{{{args.userVariables.global.omdb_api_key}}}",
+          enable_message_editing: "true",
+          enable_debug_info: "true",
         },
       },
       {
-        name: "Transcode DTS/DCA to EAC3",
+        name: "Check Audio Codec is DTS",
+        sourceRepo: "Community",
+        pluginName: "checkAudioCodec",
+        version: "1.0.0",
+        id: "check-dts",
+        position: {
+          x: 300,
+          y: 100,
+        },
+        inputsDB: {
+          codec: "dts",
+        },
+      },
+      {
+        name: "Check Audio Codec is DCA",
+        sourceRepo: "Community",
+        pluginName: "checkAudioCodec",
+        version: "1.0.0",
+        id: "check-dca",
+        position: {
+          x: 300,
+          y: 150,
+        },
+        inputsDB: {
+          codec: "dca",
+        },
+      },
+      {
+        name: "Transcode DTS/DCA to EAC3 (Fixed)",
         sourceRepo: "Community",
         pluginName: "runClassicTranscodePlugin",
         version: "2.0.0",
@@ -74,7 +107,7 @@ var details = function () {
         },
         inputsDB: {
           pluginSourceId:
-            "Community:Tdarr_Plugin_a9hd_FFMPEG_Transcode_Specific_Audio_Stream_Codecs",
+            "Local:Tdarr_Plugin_a9hd_FFMPEG_Transcode_Specific_Audio_Stream_Codecs_Fixed",
           codecs_to_transcode: "dca,dts",
           codec: "eac3",
           bitrate: "640k",
@@ -84,7 +117,7 @@ var details = function () {
         name: "Discord Success Notification",
         sourceRepo: "Local",
         pluginName: "discord",
-        version: "1.0.0",
+        version: "1.1.0",
         id: "discord-success",
         position: {
           x: 700,
@@ -93,7 +126,6 @@ var details = function () {
         inputsDB: {
           webhook_url: "{{{args.userVariables.global.discord_webhook_url}}}",
           notification_type: "transcode_success",
-          notification_mode: "updates",
           tdarr_server_url: "{{{args.userVariables.global.tdarr_server_url}}}",
           omdb_api_key: "{{{args.userVariables.global.omdb_api_key}}}",
         },
@@ -102,7 +134,7 @@ var details = function () {
         name: "Discord Error Notification",
         sourceRepo: "Local",
         pluginName: "discord",
-        version: "1.0.0",
+        version: "1.1.0",
         id: "discord-error",
         position: {
           x: 700,
@@ -111,9 +143,14 @@ var details = function () {
         inputsDB: {
           webhook_url: "{{{args.userVariables.global.discord_webhook_url}}}",
           notification_type: "transcode_error",
-          notification_mode: "updates",
+          show_file_details: "true",
+          show_processing_stats: "true",
+          show_technical_details: "true",
           tdarr_server_url: "{{{args.userVariables.global.tdarr_server_url}}}",
+          enable_cancel_button: "true",
           omdb_api_key: "{{{args.userVariables.global.omdb_api_key}}}",
+          enable_message_editing: "true",
+          enable_debug_info: "true",
         },
       },
       {
@@ -181,9 +218,30 @@ var details = function () {
       {
         source: "input-file",
         sourceHandle: "1",
+        target: "check-dts",
+        targetHandle: null,
+        id: "edge-check-dts",
+      },
+      {
+        source: "input-file",
+        sourceHandle: "1",
+        target: "check-dca",
+        targetHandle: null,
+        id: "edge-check-dca",
+      },
+      {
+        source: "check-dts",
+        sourceHandle: "1",
         target: "discord-start",
         targetHandle: null,
         id: "edge-1",
+      },
+      {
+        source: "check-dca",
+        sourceHandle: "1",
+        target: "discord-start",
+        targetHandle: null,
+        id: "edge-1-alt",
       },
       {
         source: "discord-start",
@@ -195,7 +253,7 @@ var details = function () {
       {
         source: "audio-transcode",
         sourceHandle: "1",
-        target: "discord-success",
+        target: "replace-file",
         targetHandle: null,
         id: "edge-3",
       },
@@ -207,25 +265,25 @@ var details = function () {
         id: "edge-4",
       },
       {
-        source: "discord-success",
-        sourceHandle: "1",
-        target: "replace-file",
-        targetHandle: null,
-        id: "edge-5",
-      },
-      {
         source: "replace-file",
         sourceHandle: "1",
         target: "rename-codecs",
         targetHandle: null,
-        id: "edge-6",
+        id: "edge-5",
       },
       {
         source: "rename-codecs",
+        sourceHandle: "2",
+        target: "discord-success",
+        targetHandle: null,
+        id: "edge-5b",
+      },
+      {
+        source: "discord-success",
         sourceHandle: "1",
         target: "notify-sonarr",
         targetHandle: null,
-        id: "edge-7",
+        id: "edge-5c",
       },
       {
         source: "notify-sonarr",
