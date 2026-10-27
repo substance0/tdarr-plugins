@@ -1,8 +1,10 @@
 /* eslint-disable max-len */
 /**
  * Fixed version of Tdarr_Plugin_scha_rename_based_on_codec_schadi.
- * Support files (.srt/.nfo) are no longer renamed with the text "undefined" when
- * rename_video or rename_audio is off and no codec was detected for that stream type.
+ * - Support files (.srt/.nfo) are matched by the video's name up to its first "[" (series, episode and title),
+ *   so one video no longer renames every subtitle in the folder when its name has dots inside the codec tags.
+ * - A matched support file is renamed to the video's new name plus its own language/extension suffix,
+ *   so it always lines up with the renamed video. An existing target file is never overwritten.
  */
 
 // tdarrSkipTest
@@ -16,7 +18,7 @@ const details = () => ({
     If the filename contains a codec information like h264, av1 or similar for video and AC3, AAC or trueHD \n\n
     the plugin will read the codec info from the file and rename it accordingly. \n\n
     It also takes care off addiotnal files deffined in the input Option.\n\n`,
-  Version: '1.00',
+  Version: '1.10',
   Tags: 'post-processing',
   Inputs: [
     {
@@ -111,9 +113,6 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
     'dts 96/24': 'DTS',
   };
 
-  let firstVideoStreamCodec;
-  let firstAudioStreamCodec;
-
   const videoCodecRegex = /(h264|h265|x264|x265|avc|hevc|mpeg2|av1)/gi;
   const audioCodecRegex = /(aac|ac3|eac3|flac|mp2|mp3|truehd|dts[-. ]hd[-. ]ma|dts[-. ]hd[-. ]es|dts[-. ]hd[-. ]hra|dts[-. ]express|dts)/gi;
 
@@ -121,7 +120,6 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   if (videoStream && inputs.rename_video) {
     const videoCodec = videoStream.codec_name.toLowerCase();
-    firstVideoStreamCodec = videoCodec;
 
     if (videoCodec in codecMap) {
       const renamedCodec = codecMap[videoCodec];
@@ -136,7 +134,6 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   if (audioStream && inputs.rename_audio) {
     const audioCodec = audioStream.codec_name.toLowerCase();
-    firstAudioStreamCodec = audioCodec;
 
     if (audioCodec in codecMap) {
       const renamedCodec = codecMap[audioCodec];
@@ -149,50 +146,45 @@ const plugin = (file, librarySettings, inputs, otherArguments) => {
 
   let additionalFilesCount = 0; // Counter for additional files found
 
-  if ((audioStream && inputs.rename_audio) || (videoStream && inputs.rename_video)) {
-    const filename = path.basename(fileNameOld);
-    const JustName = path.parse(filename).name;
-    const popJustnamen = JustName.split('.');
-    popJustnamen.splice(popJustnamen.length - 5);
-    const modJustname = popJustnamen.join('.');
-
+  if (((audioStream && inputs.rename_audio) || (videoStream && inputs.rename_video)) && fileNameOld !== file._id) {
     const fileDir = path.dirname(fileNameOld);
-    const directoryPath = fileDir;
+    const oldBase = path.parse(fileNameOld).name;
+    const newBase = path.parse(file._id).name;
 
-    const additionalExtensions = inputs.additional_extensions.split(',');
+    // Series, episode and title: everything before the first "[" tag.
+    const matchPrefix = oldBase.split('[')[0].trim();
 
-    const fileList = []; // Array to store the file names
-    const files = fs.readdirSync(directoryPath);
+    const extensionList = inputs.additional_extensions.split(',').map((extension) => extension.trim()).filter(Boolean);
+    const regex = new RegExp(`(${extensionList.map((extension) => extension.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`, 'i');
 
-    files.forEach((supportFile) => {
-      fileList.push(supportFile); // Add all files to the fileList array
-    });
+    if (matchPrefix.length >= 5) {
+      fs.readdirSync(fileDir).forEach((supportFile) => {
+        if (supportFile === path.basename(fileNameOld) || !supportFile.startsWith(matchPrefix) || !regex.test(supportFile)) {
+          return;
+        }
 
-    const extensionList = additionalExtensions.map((extension) => extension.trim()); // Remove leading/trailing spaces from extensions
-    const regex = new RegExp(`(${extensionList.join('|')})$`, 'i');
+        // Language and extension, e.g. ".en.hi.srt": everything from the first dot after the last "]".
+        const lastBracket = supportFile.lastIndexOf(']');
+        const suffixStart = supportFile.indexOf('.', lastBracket + 1);
+        if (suffixStart === -1) {
+          return;
+        }
 
-    files.forEach((supportFile) => {
-      if (supportFile.startsWith(modJustname) && regex.test(supportFile)) {
-        const renamedFileWithVideoCodec = codecMap[firstVideoStreamCodec] ? supportFile.replace(videoCodecRegex, codecMap[firstVideoStreamCodec]) : supportFile;
-        const renamedFileWithBothCodecs = codecMap[firstAudioStreamCodec] ? renamedFileWithVideoCodec.replace(audioCodecRegex, codecMap[firstAudioStreamCodec]) : renamedFileWithVideoCodec;
+        const renamedSupportFile = `${newBase}${supportFile.slice(suffixStart)}`;
+        if (renamedSupportFile === supportFile || fs.existsSync(`${fileDir}/${renamedSupportFile}`)) {
+          return;
+        }
 
-        fs.renameSync(`${directoryPath}/${supportFile}`, `${directoryPath}/${renamedFileWithBothCodecs}`, {
-          overwrite: true,
-        });
+        fs.renameSync(`${fileDir}/${supportFile}`, `${fileDir}/${renamedSupportFile}`);
 
-        response.infoLog += `${directoryPath}/${supportFile} renamed to ${directoryPath}/${renamedFileWithBothCodecs}\n`;
+        response.infoLog += `${fileDir}/${supportFile} renamed to ${fileDir}/${renamedSupportFile}\n`;
         additionalFilesCount += 1; // Increment the count for each additional file found
-      }
-    });
-
-  // const textFilePath = path.join(directoryPath, `${modJustname}.txt`);
-  // fs.writeFileSync(textFilePath, fileList.filter(file => file.startsWith(modJustname) && regex.test(file)).join('\n'), 'utf-8');
+      });
+    }
   }
 
   if (fileNameOld !== file._id) {
-    fs.renameSync(fileNameOld, file._id, {
-      overwrite: true,
-    });
+    fs.renameSync(fileNameOld, file._id);
     response.infoLog += `Renamed file to: ${file._id}\n`;
     if (additionalFilesCount > 0) {
       response.infoLog += `and: ${additionalFilesCount} additional Files!\n`;
